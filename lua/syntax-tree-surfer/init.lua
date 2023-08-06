@@ -1,51 +1,34 @@
 ---@diagnostic disable: missing-parameter, empty-block
 
+require ('syntax-tree-surfer.reload')()
 local ts_utils = require("nvim-treesitter.ts_utils")
+local act = require('syntax-tree-surfer.actions')
 
 local M = {}
 
+
+local function lexicographicalMin(seqA, seqB)
+	for i = 1, math.min(#seqA, #seqB) do
+		if seqA[i] < seqB[i] then
+			return seqA
+		elseif seqA[i] > seqB[i] then
+			return seqB
+		end
+	end
+	return seqA
+end
+local function union_ranges(nodeA, nodeB)
+	local lrA, lcA, rrA, rcA = nodeA:range()
+	local lrB, lcB, rrB, rcB = nodeB:range()
+
+	local startR, startC = lexicographicalMin({lrA, lcA}, {lrB, lcB})
+	local endR, endC = lexicographicalMin({rrA, rcA}, {rrB, rcB})
+	return { startR, startC, endR, endC }
+end
+
+
 local function find_range_from_2nodes(nodeA, nodeB) --{{{
-	local start_row_A, start_col_A, end_row_A, end_col_A = nodeA:range()
-	local start_row_B, start_col_B, end_row_B, end_col_B = nodeB:range()
-
-	local true_range = {}
-
-	if start_row_A == start_row_B then
-		if start_col_A < start_col_B then
-			table.insert(true_range, start_row_A)
-			table.insert(true_range, start_col_A)
-		else
-			table.insert(true_range, start_row_B)
-			table.insert(true_range, start_col_B)
-		end
-	end
-
-	if start_row_A < start_row_B then
-		table.insert(true_range, start_row_A)
-		table.insert(true_range, start_col_A)
-	elseif start_row_A > start_row_B then
-		table.insert(true_range, start_row_B)
-		table.insert(true_range, start_col_B)
-	end
-
-	if end_row_A == end_row_B then
-		if end_col_A > end_col_B then
-			table.insert(true_range, end_row_A)
-			table.insert(true_range, end_col_A)
-		else
-			table.insert(true_range, end_row_B)
-			table.insert(true_range, end_col_B)
-		end
-	end
-	if end_row_A > end_row_B then
-		table.insert(true_range, end_row_A)
-		table.insert(true_range, end_col_A)
-	elseif end_row_A < end_row_B then
-		table.insert(true_range, end_row_B)
-		table.insert(true_range, end_col_B)
-	end
-
-	return true_range
+	return union_ranges(nodeA, nodeB)
 end --}}}
 
 function M.update_selection(buf, node, selection_mode) -- rip from the old ts_utils{{{
@@ -976,6 +959,10 @@ vim.api.nvim_create_user_command("STSSwapOrHoldVisual", function()
 	hold_or_swap(true)
 	vim.cmd("norm! ")
 end, {})
+
+function M.init()
+	require('syntax-tree-surfer.actions')
+end
 
 return M
 
