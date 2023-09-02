@@ -10,10 +10,12 @@ local M = {}
 ---@param lam fun(node: Node): Node|nil
 local function trans(lam)
     local node = gl.get()
+    if not node then
+        return node
+    end
     local next = lam(node)
     if next then
         next:visual_select()
-        print("next: ", next.node:child_count(), ", ", next.node:named_child_count(), "range:", next.node:range())
         return
     end
 end
@@ -40,6 +42,7 @@ end
 ---@return fun(node:Node):Node|nil
 local function until_change(lam)
     return function(node)
+        if node == nil then return nil end
         local range = U.normalize_range({node.node:range()})
         local last = node
         node = lam(node)
@@ -55,18 +58,70 @@ local function until_change(lam)
     end
 end
 
+---@type BufFilter|nil
+M.filter = nil
 
+function M.findPat(string)
+    vim.cmd("norm! gv")
+    M.filter = M.filter or gl.BufFilter:new()
+    M.filter:set_contains(string)
+    trans(function (n)
+        return Node:new(M.filter:seekNext(n.node))
+    end)
+end
+function M.findTyp(string)
+    vim.cmd("norm! gv")
+    M.filter = M.filter or gl.BufFilter:new()
+    M.filter:set_typ(string)
+    trans(function (n)
+        return Node:new(M.filter:seekNext(n.node))
+    end)
+end
+function M.clearFilter()
+    vim.cmd("norm! gv")
+    M.filter = nil
+    M.current()
+end
+function M.seekForward(idx)
+    vim.cmd("norm! gv")
+    trans(function(node)
+        if M.filter then
+            return Node:new(M.filter:seekNext(node.node))
+        end
+    end)
+end
 function M.down(idx)
     vim.cmd("norm! gv")
     trans(function(node)
+        if M.filter then
+            return Node:new(M.filter:down(node.node))
+        end
         local labs = labels.gen_labels(node.node)
-        vim.pretty_print(labs)
         return Node:new((labs or {})[idx+1])
     end)
 end
 
+function M.prev()
+    trans(function(node)
+        if M.filter then
+            return Node:new(M.filter:left(node.node))
+        end
+        return node:prev()
+    end)
+end
+function M.next()
+    trans(function(node)
+        if M.filter then
+            return Node:new(M.filter:right(node.node))
+        end
+        return node:next()
+    end)
+end
 function M.up()
     trans(until_change(function(node)
+        if M.filter then
+            return Node:new(M.filter:up(node.node))
+        end
         return node:parent()
     end))
 end

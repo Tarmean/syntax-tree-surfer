@@ -57,5 +57,25 @@ function Node:child(idx)
 	return Node:new(subs)
 end
 
+local function last_child(n)
+	local parent = n:parent()
+	if parent then
+		local count = parent:child_count()
+		return parent:child(count - 1)
+	end
+end
+local function first_child(n)
+	local parent = n:parent()
+	if parent then
+		return parent:child(0)
+	end
+end
+function Node:next()
+	return Node:new(ts_utils.get_next_node(self.node, true, true))
+end
+function Node:prev()
+	return Node:new(ts_utils.get_previous_node(self.node, true, true))
+end
+
 
 return Node
